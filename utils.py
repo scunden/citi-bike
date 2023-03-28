@@ -39,3 +39,28 @@ def h_distance(origin, destination):
     d = radius * c
 
     return d/1.6
+
+def box_plot(df, axhs, title, savename):
+    fig, axes = plt.subplots(1,2,figsize=(8,5))
+
+    sns.boxplot(y=df['tripduration'], ax=axes[0])
+    if not axhs:
+        for axh in axhs:
+            axes[0].axhline(axh[0], linestyle='--', label=axh[1], color=axh[2])
+    axes[0].set_title("Overall")
+    axes[0].set_ylabel("Trips Duration (s)")
+    axes[0].legend()
+
+    sns.boxplot(data=df, y="tripduration", x="year", ax=axes[1])
+    if not axhs:
+        for axh in axhs:
+            axes[1].axhline(axh[0], linestyle='--', label=axh[1], color=axh[2])
+    axes[1].set_ylabel("")
+    axes[1].set_yticklabels([])
+    axes[1].set_title("By Year")
+
+    axes[1].legend()
+
+    fig.suptitle(title)
+    fig.tight_layout()
+    fig.savefig("images/{}.png".format(savename))
