@@ -10,7 +10,9 @@ In this section, I will give a brief overview of the major takeaways from each s
 
 ## 1. Detection of potential outliers and anomalies for Citibike usage
 
-I found that ultimately, there were **two** main sources of anomalies. The first one was in the `tripduration` variable, where I observed a lot of extremely high outliers, which can be visualized in the plot below.
+I found that ultimately, there were two main source of anomalies. There were some smaller discrepancies in `trip distance`, but the main one was in the `tripduration` and `birth_year` variables, where I observed a lot of extremely high outliers. Let's start with `tripduration`.
+
+### Trip Duration
 
 ![trips-duration-outliers](./images/box-plot-all.png)
 
@@ -22,11 +24,17 @@ To observe a more representative distribution of the data, I then chose to retai
 
 ---
 
-The next potential source of outliers was in the `daily number of trips`. I created an algorithm to forecast the daily number of trips on our existing range, and used the **confidence interval** to indicate which datapoint was out of the ordinary, as shown below.
+### Age
 
-![trips-duration-outliers](./images/daily_trips_outliers.png)
+We observed a similar pattern for age, whereby some records had extremely high ages in comparison to the median. However, all of those high cases were contained within "Subscriber" users, as shown below:
 
-Upon further examination, while there were some anecdotal correlations with unexpected temperatures, it was not enough to rule those outliers as anything other than **statistical noise** rather than data discrepancies.
+![trips-duration-outliers](./images/age_box_plot_unfiltered.png)
+
+Given that the extreme cases were concentrated in one class, my assumption was that most of these data points must have been some data collection system. It is also entirely possible that some of these older customers are legitimate, especially since we see the average age being slightly higher for subscribers, but ages greater than 80 seem unreasonable.
+
+So I have fileterd the dataset to only retain records of age 80 and below. This removed less than 0.3% of the data points available, but gave me more confidence in the dataset. The final disribution are shown below.
+
+![trips-duration-outliers](./images/age_box_plot_filtered.png)
 
 ## 2. Citibike usage forecast
 
