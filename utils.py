@@ -26,25 +26,24 @@ def iterate_parameters(train, test, freq=12, alpha=0.3, run_adf_test=True, verbo
     lower_tracker = pd.DataFrame()
     upper_tracker = pd.DataFrame()
     
-    if run_adf_test:
-        d_lower, d_upper = adf_test(train)
-    else:
-        d_lower, d_upper = (0,2)
+    # if run_adf_test:
+    #     d_lower, d_upper = adf_test(train)
+    # else:
+    #     d_lower, d_upper = (0,2)
         
     p = q = range(0,pq_range)
-    d = range(d_lower, d_upper)
+    d = 1
 
     # Generate all different combinations of p, q and q triplets
-    pdq = list(itertools.product(p, d, q))
+    pdq = list(itertools.product(p, [d], q))
 
     # Generate all different combinations of seasonal p, q and q triplets
-    seasonal_pdq = [(x[0], x[1], x[2], freq) for x in list(itertools.product(p, d, q))]
+    seasonal_pdq = [(x[0], x[1], x[2], freq) for x in list(itertools.product(p, [d], q))]
 
     for param in pdq:
         for param_seasonal in seasonal_pdq:
             for trend in ['n','c','t','ct']:
-                if verbose:
-                    print("Param: {}|ParamSeasonal: {} |Trend: {}".format(param, param_seasonal, trend))
+                
                 results = sm.tsa.statespace.SARIMAX(train,
                                                 order=param,
                                                 seasonal_order=param_seasonal,
@@ -52,7 +51,8 @@ def iterate_parameters(train, test, freq=12, alpha=0.3, run_adf_test=True, verbo
                                                 enforce_invertibility=False,
                                                 trend=trend
                                                ).fit(disp=0)
-
+                if verbose:
+                    print("Param: {}|ParamSeasonal: {} |Trend: {} | AIC: {}".format(param, param_seasonal, trend, results.aic))
                 pred = results.get_prediction(
                     start=test.index[0],
                     end=test.index[len(test)-1], 
