@@ -3,7 +3,95 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import math
+import itertools
+from statsmodels.tsa.stattools import adfuller
+import statsmodels.api as sm
 
+def adf_test(dates):
+    t_stat, p_value, _, _, critical_values, _  = adfuller(dates.values, autolag='AIC')
+    t_critical_value = critical_values["1%"]
+    
+    if t_stat < t_critical_value:
+        # Means series is stationary
+        print("Series is Stationary | P Value: {}".format(p_value))
+        return (0,1)
+    else: 
+        print("Series is not Stationary | P Value: {}".format(p_value))
+        return (1,2)
+
+def iterate_parameters(train, test, freq=12, alpha=0.3, run_adf_test=True, verbose=False, pq_range=3):
+    
+    param_tracker = pd.DataFrame(columns = ["param","param_seasonal","trend","aic","mape"])
+    pred_tracker = pd.DataFrame()
+    lower_tracker = pd.DataFrame()
+    upper_tracker = pd.DataFrame()
+    
+    if run_adf_test:
+        d_lower, d_upper = adf_test(train)
+    else:
+        d_lower, d_upper = (0,2)
+        
+    p = q = range(0,pq_range)
+    d = range(d_lower, d_upper)
+
+    # Generate all different combinations of p, q and q triplets
+    pdq = list(itertools.product(p, d, q))
+
+    # Generate all different combinations of seasonal p, q and q triplets
+    seasonal_pdq = [(x[0], x[1], x[2], freq) for x in list(itertools.product(p, d, q))]
+
+    for param in pdq:
+        for param_seasonal in seasonal_pdq:
+            for trend in ['n','c','t','ct']:
+                if verbose:
+                    print("Param: {}|ParamSeasonal: {} |Trend: {}".format(param, param_seasonal, trend))
+                results = sm.tsa.statespace.SARIMAX(train,
+                                                order=param,
+                                                seasonal_order=param_seasonal,
+                                                enforce_stationarity=False,
+                                                enforce_invertibility=False,
+                                                trend=trend
+                                               ).fit(disp=0)
+
+                pred = results.get_prediction(
+                    start=test.index[0],
+                    end=test.index[len(test)-1], 
+                    dynamic=False)
+
+                pred_ci = pred.conf_int(alpha=alpha)
+
+                pred_tracker = pd.concat([pred_tracker,
+                                          pred.predicted_mean.rename("{}{}{}".format(param,param_seasonal,trend))],
+                                         axis=1)
+
+                lower_tracker = pd.concat([lower_tracker,
+                                          pred_ci["lower y"].rename("{}{}{}".format(param,param_seasonal,trend))],
+                                          axis=1)
+
+                upper_tracker = pd.concat([upper_tracker,
+                                          pred_ci["upper y"].rename("{}{}{}".format(param,param_seasonal,trend))],
+                                          axis=1)
+
+                param_tracker.loc[len(param_tracker)] = [param, 
+                                                         param_seasonal, 
+                                                         trend,
+                                                         results.aic, 
+                                                         mape(test, pred.predicted_mean)
+                                                        ]
+                
+    return param_tracker, pred_tracker, lower_tracker, upper_tracker
+
+def mape(y_true, y_pred): 
+    y_true, y_pred = np.array(y_true), np.array(y_pred)
+    return np.mean(np.abs((y_true - y_pred) / y_true))
+
+
+def filter_outliers(df, perc, age_t):
+    df = df[df.h_distance < df.h_distance.max()]
+    df = df[df.tripduration < np.percentile(df.tripduration,perc)]
+    df = df.loc[df.age<=age_t]
+    return df
+    
 def upload_data():
     stations=pd.read_csv('data/citibike-stations.csv')
     trips = pd.read_csv('data/citibike-trips-sample.csv')
