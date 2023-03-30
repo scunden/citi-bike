@@ -38,4 +38,17 @@ So I have fileterd the dataset to only retain records of age 80 and below. This 
 
 ## 2. Citibike usage forecast
 
+Here, I set out to predict the citi bikes usage, by focusing on the aggregated number of trips by day. But first, I identified the major components of our series, shown below:
+
+![trips-duration-outliers](./images/daily_decomposition.png)
+
+We can see that our data has a clear trend, but that it is very recent. The first few years of the data are fairly flat. We also observe two seasonality patterns, one at a yearly level where we see warmer months attract more trips, and one at the weekly level where weekdays are usually much busies than the weekend. 
+
+We can also see that holidays generally have a negative impact on the number of trips. Other than Columbus day and Easter, on most holidays, the bike usage decreases.
+
+Now, I used those results to help guide a grid search over a large parameter space to find the best performing algorithm. The best performing algorithm was found to have  daily MAPE score of ~26%, and is shown predicting usage for 2017 below:
+
+![trips-duration-outliers](./images/2017_daily_forecast.png)
+
+
 ## 3. Insights into bike stations based on the data

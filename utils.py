@@ -7,6 +7,27 @@ import itertools
 from statsmodels.tsa.stattools import adfuller
 import statsmodels.api as sm
 
+
+def generate_holidays(df, window=1):
+    holidays = pd.read_csv('data/us_holidays.csv')
+    holidays['Date'] = pd.to_datetime(holidays['Date'])
+    holidays = holidays.rename({'Date':'ds', 'Holiday':'holiday'}, axis = 1)
+    holidays = holidays.loc[(holidays.ds > df.index.min()) & (holidays.ds <= df.index.max())]
+    # holidays = holidays.set_index(['ds'])
+    holidays['lower_window']=0
+    holidays['upper_window']=window
+    return holidays[['ds','holiday', 'lower_window', 'upper_window']]
+
+def train_test_split(df, test_perc, weekly=False):
+    test_period = int(df.shape[0]*test_perc)
+    train = df.iloc[:-test_period]
+    if weekly:
+        test = df.iloc[-test_period:-1]
+    else:
+        test = df.iloc[-test_period:]
+
+    return train, test, test_period
+
 def adf_test(dates):
     t_stat, p_value, _, _, critical_values, _  = adfuller(dates.values, autolag='AIC')
     t_critical_value = critical_values["1%"]
@@ -21,7 +42,7 @@ def adf_test(dates):
 
 def iterate_parameters(train, test, freq=12, alpha=0.3, run_adf_test=True, verbose=False, pq_range=3):
     
-    param_tracker = pd.DataFrame(columns = ["param","param_seasonal","trend","aic","mape"])
+    param_tracker = pd.DataFrame(columns = ["param","param_seasonal","aic","mape"])
     pred_tracker = pd.DataFrame()
     lower_tracker = pd.DataFrame()
     upper_tracker = pd.DataFrame()
@@ -42,42 +63,42 @@ def iterate_parameters(train, test, freq=12, alpha=0.3, run_adf_test=True, verbo
 
     for param in pdq:
         for param_seasonal in seasonal_pdq:
-            for trend in ['n','c','t','ct']:
+            # for trend in ['n','c','t','ct']:
                 
-                results = sm.tsa.statespace.SARIMAX(train,
-                                                order=param,
-                                                seasonal_order=param_seasonal,
-                                                enforce_stationarity=False,
-                                                enforce_invertibility=False,
-                                                trend=trend
-                                               ).fit(disp=0)
-                if verbose:
-                    print("Param: {}|ParamSeasonal: {} |Trend: {} | AIC: {}".format(param, param_seasonal, trend, results.aic))
-                pred = results.get_prediction(
-                    start=test.index[0],
-                    end=test.index[len(test)-1], 
-                    dynamic=False)
+            results = sm.tsa.statespace.SARIMAX(train,
+                                            order=param,
+                                            seasonal_order=param_seasonal,
+                                            enforce_stationarity=False,
+                                            enforce_invertibility=False,
+                                            # trend=trend
+                                            ).fit(disp=0)
+            if verbose:
+                print("Param: {}|ParamSeasonal: {} | AIC: {}".format(param, param_seasonal, results.aic))
+            pred = results.get_prediction(
+                start=test.index[0],
+                end=test.index[len(test)-1], 
+                dynamic=False)
 
-                pred_ci = pred.conf_int(alpha=alpha)
+            pred_ci = pred.conf_int(alpha=alpha)
 
-                pred_tracker = pd.concat([pred_tracker,
-                                          pred.predicted_mean.rename("{}{}{}".format(param,param_seasonal,trend))],
-                                         axis=1)
+            pred_tracker = pd.concat([pred_tracker,
+                                        pred.predicted_mean.rename("{}{}".format(param,param_seasonal))],
+                                        axis=1)
 
-                lower_tracker = pd.concat([lower_tracker,
-                                          pred_ci["lower y"].rename("{}{}{}".format(param,param_seasonal,trend))],
-                                          axis=1)
+            lower_tracker = pd.concat([lower_tracker,
+                                        pred_ci["lower y"].rename("{}{}".format(param,param_seasonal))],
+                                        axis=1)
 
-                upper_tracker = pd.concat([upper_tracker,
-                                          pred_ci["upper y"].rename("{}{}{}".format(param,param_seasonal,trend))],
-                                          axis=1)
+            upper_tracker = pd.concat([upper_tracker,
+                                        pred_ci["upper y"].rename("{}{}".format(param,param_seasonal))],
+                                        axis=1)
 
-                param_tracker.loc[len(param_tracker)] = [param, 
-                                                         param_seasonal, 
-                                                         trend,
-                                                         results.aic, 
-                                                         mape(test, pred.predicted_mean)
-                                                        ]
+            param_tracker.loc[len(param_tracker)] = [param, 
+                                                        param_seasonal, 
+                                                        # trend,
+                                                        results.aic, 
+                                                        mape(test, pred.predicted_mean)
+                                                    ]
                 
     return param_tracker, pred_tracker, lower_tracker, upper_tracker
 
