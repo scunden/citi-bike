@@ -40,6 +40,9 @@ So I have fileterd the dataset to only retain records of age 80 and below. This 
 
 Here, I set out to predict the citi bikes usage, by focusing on the aggregated number of trips by day. But first, I identified the major components of our series, shown below:
 
+![trips-duration-outliers](./images/time_series.png)
+
+
 ![trips-duration-outliers](./images/daily_decomposition.png)
 
 We can see that our data has a clear trend, but that it is very recent. The first few years of the data are fairly flat. We also observe two seasonality patterns, one at a yearly level where we see warmer months attract more trips, and one at the weekly level where weekdays are usually much busies than the weekend. 
